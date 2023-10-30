@@ -1,0 +1,60 @@
+import pyodbc
+import time
+from win10toast import ToastNotifier
+
+#query will need to be adjusted each period to grab the current period data submissions
+query = """
+SELECT
+C.status_updated_timestamp AS 'Submission Timestamp'
+FROM CYCLE_SUBMISSIONS A
+
+LEFT JOIN BANK_SUBMISSION_VERSIONS C
+ON A.bank_submission_id = C.bank_submission_id AND A.bank_submission_version = C.bank_submission_version
+
+WHERE A.report_date = '09/30/2023' 
+
+order by 1 desc
+"""
+
+# Create a toast notifier
+toaster = ToastNotifier()
+
+# Initialize the previous_result variable to None and loop counter to 1
+previous_result = None
+loop_counter = 1
+
+# Function to run the query and check for new data
+def run_query_and_notify():
+    global previous_result
+    connection = pyodbc.connect('DRIVER={SQL Server};SERVER=M-SNCDBP02.frb.gov;DATABASE=SNC_III;UID=;PWD=;Trusted_Connection=yes')
+    cursor = connection.cursor()
+    cursor.execute(query)
+
+    # Store the current query result
+    current_result = cursor.fetchall()
+
+    try:
+        if previous_result is not None:
+            # Compare the current and previous results to check for new data
+            if current_result != previous_result:
+                send_windows_toast_notification("New data detected!")
+
+        # Update the previous result with the current result
+        previous_result = current_result
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    cursor.close()
+    connection.close()
+
+# Function to send a Windows toast notification
+def send_windows_toast_notification(message):
+    toaster.show_toast('New Data Submission Detected', message, duration=(15))
+while True:
+    print(f"Starting new loop iteration. Loop {loop_counter}.")
+    run_query_and_notify()
+    loop_counter += 1
+    time.sleep(60)
+
+WNDPROC return value cannot be converted to LRESULT
+TypeError: WPARAM is simple, so must be an int object (got NoneType)
